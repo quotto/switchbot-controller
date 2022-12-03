@@ -35,7 +35,7 @@ jobs:
         mkdir dist/cert
         echo ${IOT_CERT} >> dist/cert/certificate.pem.crt
         echo ${IOT_PRIVATE_KEY} >> dist/cert/private.pem.key
-        echo ${IOT_ROOT_CA} >> dist/cert/AmazonRootCA1.pem.key
+        echo ${IOT_ROOT_CA} >> dist/cert/AmazonRootCA1.pem
 
     - name: Packaging
       run: |
