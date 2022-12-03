@@ -1,0 +1,83 @@
+import Alexa, { HandlerInput } from 'ask-sdk-core';
+import {IntentRequest, Request, Response} from 'ask-sdk-model';
+import {MqttPublisher} from './mqtt_publisher';
+
+const TOPIC_ID = "switchbot";
+const SWITCH_NAME = "kitchen1";
+const LOCATION = "kitchen";
+
+const SwitchOffIntentHandler = {
+    canHandle(handlerInput: HandlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
+            Alexa.getIntentName(handlerInput.requestEnvelope) === 'SwitchOnIntent';
+    },
+    async handle(handlerInput: HandlerInput) {
+        const publisher = MqttPublisher.build();
+        await publisher.publish(TOPIC_ID,{location: LOCATION, switch_name: SWITCH_NAME, state: false});
+        return handlerInput.responseBuilder.speak("電気を点けました").getResponse();
+    }
+}
+const SwitchOnIntentHandler = {
+    canHandle(handlerInput: HandlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
+            Alexa.getIntentName(handlerInput.requestEnvelope) === 'SwitchOffIntent';
+    },
+    async handle(handlerInput: HandlerInput) {
+        const publisher = MqttPublisher.build();
+        await publisher.publish(TOPIC_ID,{location: LOCATION, switch_name: SWITCH_NAME, state: true});
+        return handlerInput.responseBuilder.speak("電気を消しました").getResponse();
+    }
+}
+
+const SessionEndedRequestHandler = {
+    canHandle(handlerInput: HandlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'SessionEndedRequest';
+    },
+    handle(handlerInput: HandlerInput) {
+        return handlerInput.responseBuilder.getResponse();
+    }
+};
+const LaunchRequestHandler = {
+    canHandle(handlerInput: HandlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'LaunchRequest';
+    },
+    handle(handlerInput: HandlerInput) {
+        const speakOutput = `電気を点ける、または消すを指定してください。`;
+
+        return handlerInput.responseBuilder
+            .speak(speakOutput)
+            .getResponse();
+    }
+};
+
+const ErrorHandler = {
+    canHandle() {
+        return true;
+    },
+    handle(handlerInput: HandlerInput, error: Error) {
+        console.error(`Error handled: ${error.message}`);
+        console.error(`Error stack`, JSON.stringify(error.stack));
+        console.error(`Error`, JSON.stringify(error));
+
+        const speakOutput = 'エラーが発生しました';
+
+        return handlerInput.responseBuilder
+            .speak(speakOutput)
+            .reprompt(speakOutput)
+            .getResponse();
+    }
+};
+
+const LogRequestInterceptor = {
+    process(handlerInput: HandlerInput) {
+        console.log(`RESPONSE=${JSON.stringify(handlerInput.requestEnvelope)}`);
+    }
+}
+
+const LogResponseInterceptor = {
+    process(handlerInput: HandlerInput, response: Response) {
+        console.log(`RESPONSE=${JSON.stringify(response)}`);
+    }
+}
+
+exports.handler = Alexa.SkillBuilders.custom().addRequestHandlers(SessionEndedRequestHandler, LaunchRequestHandler, SwitchOnIntentHandler, SwitchOffIntentHandler).addErrorHandlers(ErrorHandler).addRequestInterceptors(LogRequestInterceptor).addResponseInterceptors(LogResponseInterceptor).lambda();
