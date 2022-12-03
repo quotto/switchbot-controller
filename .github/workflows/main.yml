@@ -10,11 +10,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout
+      uses: actions/checkout@v3
+
     - name: Use Node.js
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v3
       with:
         node-version: 18
+
     - name: Install dependencies and TypeScript
       run: |
         npm install
@@ -22,6 +25,7 @@ jobs:
 
     - name: Build
       run: npm run build
+
     - name: Import Certificate Files
       env:
         IOT_CERT: ${{ secrets.IOT_CERT }}
@@ -32,15 +36,24 @@ jobs:
         echo ${IOT_CERT} >> dist/cert/certificate.pem.crt
         echo ${IOT_PRIVATE_KEY} >> dist/cert/private.pem.key
         echo ${IOT_ROOT_CA} >> dist/cert/AmazonRootCA1.pem.key
+
     - name: Packaging
       run: |
-        zip -dd lambda.zip node_modules dist/**/*.js package.json package-lock.json
+        zip -qq -r lambda.zip node_modules dist package.json package-lock.json
+
     - name: Set up AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
+      uses: aws-actions/configure-aws-credentials@v1-node16
       with:
         role-to-assume: ${{ secrets.AWS_ASSUME_ROLE_ARN }}
         session-name: switchbot-controller-deploy-session
         aws-region: ap-northeast-1
+
     - name: Deploy to AWS Lambda
       run: |
         aws lambda update-function-code --function-name SwitchBot-Controller --zip-file fileb://lambda.zip
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: lambda
+        path: lambda.zip
