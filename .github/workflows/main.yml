@@ -43,4 +43,4 @@ jobs:
         aws-region: ap-northeast-1
     - name: Deploy to AWS Lambda
       run: |
-        aws lambda update-function-code --function-name Switchbot-Controller --zip-file fileb://lambda.zip
+        aws lambda update-function-code --function-name SwitchBot-Controller --zip-file fileb://lambda.zip
