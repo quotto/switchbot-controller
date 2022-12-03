@@ -1,5 +1,5 @@
-import Alexa, { HandlerInput } from 'ask-sdk-core';
-import {IntentRequest, Request, Response} from 'ask-sdk-model';
+import { getIntentName, getRequestType, HandlerInput, SkillBuilders } from 'ask-sdk-core';
+import {Response} from 'ask-sdk-model';
 import {MqttPublisher} from './mqtt_publisher';
 
 const TOPIC_ID = "switchbot";
@@ -8,8 +8,8 @@ const LOCATION = "kitchen";
 
 const SwitchOffIntentHandler = {
     canHandle(handlerInput: HandlerInput) {
-        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
-            Alexa.getIntentName(handlerInput.requestEnvelope) === 'SwitchOnIntent';
+        return getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
+            getIntentName(handlerInput.requestEnvelope) === 'SwitchOnIntent';
     },
     async handle(handlerInput: HandlerInput) {
         const publisher = MqttPublisher.build();
@@ -19,8 +19,8 @@ const SwitchOffIntentHandler = {
 }
 const SwitchOnIntentHandler = {
     canHandle(handlerInput: HandlerInput) {
-        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
-            Alexa.getIntentName(handlerInput.requestEnvelope) === 'SwitchOffIntent';
+        return getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
+            getIntentName(handlerInput.requestEnvelope) === 'SwitchOffIntent';
     },
     async handle(handlerInput: HandlerInput) {
         const publisher = MqttPublisher.build();
@@ -31,7 +31,7 @@ const SwitchOnIntentHandler = {
 
 const SessionEndedRequestHandler = {
     canHandle(handlerInput: HandlerInput) {
-        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'SessionEndedRequest';
+        return getRequestType(handlerInput.requestEnvelope) === 'SessionEndedRequest';
     },
     handle(handlerInput: HandlerInput) {
         return handlerInput.responseBuilder.getResponse();
@@ -39,7 +39,7 @@ const SessionEndedRequestHandler = {
 };
 const LaunchRequestHandler = {
     canHandle(handlerInput: HandlerInput) {
-        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'LaunchRequest';
+        return getRequestType(handlerInput.requestEnvelope) === 'LaunchRequest';
     },
     handle(handlerInput: HandlerInput) {
         const speakOutput = `電気を点ける、または消すを指定してください。`;
@@ -80,4 +80,4 @@ const LogResponseInterceptor = {
     }
 }
 
-exports.handler = Alexa.SkillBuilders.custom().addRequestHandlers(SessionEndedRequestHandler, LaunchRequestHandler, SwitchOnIntentHandler, SwitchOffIntentHandler).addErrorHandlers(ErrorHandler).addRequestInterceptors(LogRequestInterceptor).addResponseInterceptors(LogResponseInterceptor).lambda();
+exports.handler = SkillBuilders.custom().addRequestHandlers(SessionEndedRequestHandler, LaunchRequestHandler, SwitchOnIntentHandler, SwitchOffIntentHandler).addErrorHandlers(ErrorHandler).addRequestInterceptors(LogRequestInterceptor).addResponseInterceptors(LogResponseInterceptor).lambda();
