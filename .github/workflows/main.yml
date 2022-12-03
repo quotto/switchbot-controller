@@ -23,11 +23,15 @@ jobs:
     - name: Build
       run: npm run build
     - name: Import Certificate Files
+      env:
+        IOT_CERT: ${{ secrets.IOT_CERT }}
+        IOT_PRIVATE_KEY: ${{ secrets.IOT_PRIVATE_KEY }}
+        IOT_ROOT_CA: ${{ secrets.IOT_ROOT_CA }}
       run: |
         mkdir dist/cert
-        cat ${{ secrets.IOT_CERT }} >> dist/cert/certificate.pem.crt
-        cat ${{ secrets.IOT_PRIVATE_KEY }} >> dist/cert/private.pem.key
-        cat ${{ secrets.IOT_ROOT_CA }} >> dist/cert/AmazonRootCA1.pem.key
+        echo ${IOT_CERT} >> dist/cert/certificate.pem.crt
+        echo ${IOT_PRIVATE_KEY} >> dist/cert/private.pem.key
+        echo ${IOT_ROOT_CA} >> dist/cert/AmazonRootCA1.pem.key
     - name: Packaging
       run: |
         zip -dd lambda.zip node_modules dist/**/*.js package.json package-lock.json
