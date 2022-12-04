@@ -13,8 +13,8 @@ const SwitchOffIntentHandler = {
     },
     async handle(handlerInput: HandlerInput) {
         const publisher = MqttPublisher.build();
-        await publisher.publish(TOPIC_ID,{location: LOCATION, switch_name: SWITCH_NAME, state: false});
-        return handlerInput.responseBuilder.speak("電気を点けました").getResponse();
+        await publisher.publish(TOPIC_ID,{location: LOCATION, switch_name: SWITCH_NAME, state: true});
+        return handlerInput.responseBuilder.speak("").getResponse();
     }
 }
 const SwitchOnIntentHandler = {
@@ -24,8 +24,8 @@ const SwitchOnIntentHandler = {
     },
     async handle(handlerInput: HandlerInput) {
         const publisher = MqttPublisher.build();
-        await publisher.publish(TOPIC_ID,{location: LOCATION, switch_name: SWITCH_NAME, state: true});
-        return handlerInput.responseBuilder.speak("電気を消しました").getResponse();
+        await publisher.publish(TOPIC_ID,{location: LOCATION, switch_name: SWITCH_NAME, state: false});
+        return handlerInput.responseBuilder.speak("").getResponse();
     }
 }
 
