@@ -40,7 +40,7 @@ received_count = 0
 received_all_event = threading.Event()
 
 # serviceレイヤーへ注入するRepositoryの実装インスタンスを初期化する
-state_repository = JsonFileRepository.getInstance()
+state_repository = JsonFileRepository.get_instance()
 state_repository.init()
 
 
