@@ -1,9 +1,15 @@
 name: AWS Lambda Deployment
 
-on: [push]
+on:
+  push:
+    paths:
+      - publisher/**
 
 permissions:
   id-token: write
+
+env:
+  PUBLISHER_PATH: publisher
 
 jobs:
   build:
@@ -20,11 +26,14 @@ jobs:
 
     - name: Install dependencies and TypeScript
       run: |
+        cd ${PUBLISHER_PATH}
         npm install
         npm install -g typescript
 
     - name: Build
-      run: npm run build
+      run: |
+        cd ${PUBLISHER_PATH}
+        npm run build
 
     - name: Import Certificate Files
       env:
@@ -32,13 +41,14 @@ jobs:
         IOT_PRIVATE_KEY: ${{ secrets.IOT_PRIVATE_KEY }}
         IOT_ROOT_CA: ${{ secrets.IOT_ROOT_CA }}
       run: |
-        mkdir dist/cert
-        echo ${IOT_CERT} >> dist/cert/certificate.pem.crt
-        echo ${IOT_PRIVATE_KEY} >> dist/cert/private.pem.key
-        echo ${IOT_ROOT_CA} >> dist/cert/AmazonRootCA1.pem
+        mkdir ${PUBLISHER_PATH}dist/cert
+        echo ${IOT_CERT} >> ${PUBLISHER_PATH}dist/cert/certificate.pem.crt
+        echo ${IOT_PRIVATE_KEY} >> ${PUBLISHER_PATH}/dist/cert/private.pem.key
+        echo ${IOT_ROOT_CA} >> ${PUBLISHER_PATH}/dist/cert/AmazonRootCA1.pem
 
     - name: Packaging
       run: |
+        cd ${PUBLISHER_PATH}
         zip -qq -r lambda.zip node_modules
         cd dist
         zip -qq -r -u ../lambda.zip .
@@ -52,10 +62,4 @@ jobs:
 
     - name: Deploy to AWS Lambda
       run: |
-        aws lambda update-function-code --function-name SwitchBot-Controller --zip-file fileb://lambda.zip
-
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: lambda
-        path: lambda.zip
+        aws lambda update-function-code --function-name SwitchBot-Controller --zip-file fileb://${PUBLISHER_PATH}/lambda.zip
