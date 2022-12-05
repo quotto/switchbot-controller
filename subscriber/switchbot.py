@@ -12,16 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#--
-#Changes from original file
-#2022/12/4
-#- Original execute method was changed to call from another python module
-#- Deleted methods about scan process
-#- Add gatt process of char-write-req handle:0x13, value:0x01 in trigger_device method
+# --
+# Changes from original file
+# 2022/12/4
+# - Original execute method was changed to call from another python module
+# - Deleted methods about scan process
+# - Add gatt process of char-write-req handle:0x13, value:0x01 in trigger_device method
 
 import pexpect
 import sys
-from bluepy.btle import Scanner, DefaultDelegate
 import binascii
 import copy
 import datetime

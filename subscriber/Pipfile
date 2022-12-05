@@ -6,13 +6,10 @@ name = "pypi"
 [packages]
 pybluez = "*"
 gattlib = "*"
-pexpect = "*"
-bluepy = "*"
-bleak = "*"
-ptyprocess = "*"
 awscrt = "*"
 awsiot = "*"
 awsiotsdk = "*"
+pexpect = "*"
 
 [dev-packages]
 

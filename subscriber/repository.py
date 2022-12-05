@@ -3,7 +3,7 @@ import abc
 import traceback
 
 
-class IRepository(abc.ABCMeta):
+class IRepository(abc.ABC):
     @abc.abstractmethod
     def init(self) -> None:
         raise NotImplementedError()
@@ -35,15 +35,16 @@ class UnInitializedError(Exception):
 class JsonFileRepository(IRepository):
     switches_state = {}
     initialize_flag = False
+    db_file = "db/switches.json"
 
     @classmethod
     def getInstance(cls) -> IRepository:
         if not hasattr(cls, '_instance'):
-            cls._instance = cls()
+            cls._instance = super().__new__(cls)
         return cls._instance
 
     def init(self) -> None:
-        with open('switches.json', encoding='utf-8') as switches_file:
+        with open(self.db_file, encoding='utf-8') as switches_file:
             self.switches_state = json.load(switches_file)
         self.initialize_flag = True
 
@@ -69,7 +70,7 @@ class JsonFileRepository(IRepository):
 
         try:
             self.switches_state[switch_name]["state"] = state
-            with open('switches.json', encoding='utf-8', mode='w') as switches_file:
+            with open(self.db_file, encoding='utf-8', mode='w') as switches_file:
                 json.dump(self.switches_state, switches_file)
         except Exception as e:
             print(traceback.format_exc())
