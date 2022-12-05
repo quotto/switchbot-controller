@@ -41,8 +41,8 @@ jobs:
         IOT_PRIVATE_KEY: ${{ secrets.IOT_PRIVATE_KEY }}
         IOT_ROOT_CA: ${{ secrets.IOT_ROOT_CA }}
       run: |
-        mkdir ${PUBLISHER_PATH}dist/cert
-        echo ${IOT_CERT} >> ${PUBLISHER_PATH}dist/cert/certificate.pem.crt
+        mkdir ${PUBLISHER_PATH}/dist/cert
+        echo ${IOT_CERT} >> ${PUBLISHER_PATH}/dist/cert/certificate.pem.crt
         echo ${IOT_PRIVATE_KEY} >> ${PUBLISHER_PATH}/dist/cert/private.pem.key
         echo ${IOT_ROOT_CA} >> ${PUBLISHER_PATH}/dist/cert/AmazonRootCA1.pem
 
