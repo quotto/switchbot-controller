@@ -46,7 +46,8 @@ def trigger_device(device):
     con.sendline('char-desc')
     con.expect(['\[CON\]', 'cba20002-224d-11e6-9fb8-0002a5d5c51b'])
     cmd_handle = con.before.decode('utf-8').split('\n')[-1].split()[2].strip(',')
-    con.sendline('char-write-req 13 01')
+    con.sendline('char-write-req 13 0100')
+    con.expect('\[LE\]>')
     if dev_type == 'Bot':
         if act == 'Turn On':
             con.sendline('char-write-cmd ' + cmd_handle + ' 570101')
