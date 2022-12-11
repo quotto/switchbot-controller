@@ -13,6 +13,9 @@ interface MqttPublisher {
 class MqttPublisherImpl implements MqttPublisher {
     private mqttClientConnection: mqtt.MqttClientConnection
     constructor() {
+        if(typeof(process.env.AWS_IOT_ENDPOINT)==="undefined") {
+            throw new Error("Environment variable: AWS_IOT_ENDPOINT is not defnied");
+        }
         const client = new mqtt.MqttClient();
         const builder = iot.AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path("./cert/certificate.pem.crt","./cert/private.pem.key");
         builder.with_client_id("switchbot-publisher");
