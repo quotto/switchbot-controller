@@ -17,7 +17,7 @@ class MqttPublisherImpl implements MqttPublisher {
         const builder = iot.AwsIotMqttConnectionConfigBuilder.new_mtls_builder_from_path("./cert/certificate.pem.crt","./cert/private.pem.key");
         builder.with_client_id("switchbot-publisher");
         builder.with_certificate_authority_from_path(undefined,"./cert/AmazonRootCA1.pem");
-        builder.with_endpoint("a3l2iz9mp87xyh-ats.iot.ap-northeast-1.amazonaws.com");
+        builder.with_endpoint(process.env.AWS_IOT_ENDPOINT);
         this.mqttClientConnection = client.new_connection(builder.build());
     }
     async publish(topic: string, body: SwitchBotTopicBody) {
