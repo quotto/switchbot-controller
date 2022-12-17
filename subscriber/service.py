@@ -1,17 +1,18 @@
 import json
 import traceback
+import logging
 import switchbot
 from repository import GetSwitchError,UpdateStateError,SwitchNotExistError, IRepository
 
 def is_valid_format(payload: dict)->bool:
     if("switch_name" not in payload):
-        print("Switch name is not specified.")
+        logging.error("Switch name is not specified.")
         return False
     if("state" not in payload):
-        print("State is not specified")
+        logging.error("State is not specified")
         return False
     if not isinstance(payload["state"], bool):
-        print("State is invalid value.")
+        logging.error("State is invalid value.")
         return False
     return True
 
@@ -19,8 +20,8 @@ def exec_switchbot(payload: str, repository: IRepository)->None:
     try:
         received_data = json.loads(payload)
     except json.decoder.JSONDecodeError as e:
-        print(e.msg())
-        print(traceback.format_exc())
+        logging.error(e.msg())
+        logging.error(traceback.format_exc())
         return
 
 
@@ -31,10 +32,10 @@ def exec_switchbot(payload: str, repository: IRepository)->None:
         try:
             current_state = repository.get_switch_record_by_switch_name(target_switch_name)
         except SwitchNotExistError:
-            print("Switch {} is not registered.".format(target_switch_name))
+            logging.error("Switch {} is not registered.".format(target_switch_name))
             return
         except GetSwitchError:
-            print("Read state failed.")
+            logging.error("Read state failed.")
             return
 
 
@@ -43,7 +44,7 @@ def exec_switchbot(payload: str, repository: IRepository)->None:
                 try:
                     repository.update_state_by_switch_name(target_switch_name, required_state)
                 except UpdateStateError as e:
-                    print("Update state failed.")
+                    logging.info("Update state failed.")
                     return
         else:
-            print("Already switch is {}".format("ON" if required_state else "OFF"))
+            logging.warning("Already switch is {}".format("ON" if required_state else "OFF"))

@@ -24,13 +24,14 @@ import sys
 import binascii
 import copy
 import datetime
+import logging
 
 def trigger_device(device):
     [mac, dev_type, act] = device
     # print 'Start to control'
     con = pexpect.spawn('gatttool -b ' + mac + ' -t random -I')
     con.expect('\[LE\]>')
-    print('Preparing to connect.')
+    logging.info('Preparing to connect.')
     retry = 3
     index = 0
     while retry > 0 and 0 == index:
@@ -40,9 +41,9 @@ def trigger_device(device):
             ['Error', '\[CON\]', 'Connection successful.*\[LE\]>'])
         retry -= 1
     if 0 == index:
-        print('Connection error.')
+        logging.error('Connection error.')
         return
-    print('Connection successful.')
+    logging.info('Connection successful.')
     con.sendline('char-desc')
     con.expect(['\[CON\]', 'cba20002-224d-11e6-9fb8-0002a5d5c51b'])
     cmd_handle = con.before.decode('utf-8').split('\n')[-1].split()[2].strip(',')
@@ -75,9 +76,9 @@ def trigger_device(device):
                 tempInt -= 128
             meterTemp = tempInt + tempFra
             meterHumi = int(data[6:8], 16) % 128
-            print("Meter[%s] %.1f'C %d%%" % (mac, meterTemp, meterHumi))
+            logging.info("Meter[%s] %.1f'C %d%%" % (mac, meterTemp, meterHumi))
         else:
-            print('Error!')
+            logging.error('Error!')
             return False
     elif dev_type == 'Curtain':
         if act == 'Open':
@@ -87,11 +88,11 @@ def trigger_device(device):
         elif act == 'Pause':
             con.sendline('char-write-cmd ' + cmd_handle + ' 570F450100FF')
     else:
-        print('Unsupported operations')
+        logging.error('Unsupported operations')
     con.expect('\[LE\]>')
     con.sendline('disconnect')
     con.sendline('quit')
-    print('Complete')
+    logging.info('Complete')
     return True
 
 
@@ -99,7 +100,7 @@ def execute(mac="", dev_type="", cmd=""):
     connect = pexpect.spawn('hciconfig')
     pnum = connect.expect(["hci0", pexpect.EOF, pexpect.TIMEOUT])
     if pnum != 0:
-        print('No bluetooth hardware, exit now')
+        logging.error('No bluetooth hardware, exit now')
         return False
     connect = pexpect.spawn('hciconfig hci0 up')
 
