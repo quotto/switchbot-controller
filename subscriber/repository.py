@@ -1,7 +1,7 @@
 import json
 import abc
 import traceback
-
+import logging
 
 class IRepository(abc.ABC):
     @abc.abstractmethod
@@ -57,11 +57,11 @@ class JsonFileRepository(IRepository):
         try:
             return self.switches_state[switch_name]
         except KeyError as e:
-            print(traceback.format_exc())
+            logging.error(traceback.format_exc())
             raise SwitchNotExistError()
 
         except Exception as e:
-            print(e.with_traceback())
+            logging.error(e.with_traceback())
             raise GetSwitchError()
 
     def update_state_by_switch_name(self, switch_name, state) -> None:
@@ -70,8 +70,9 @@ class JsonFileRepository(IRepository):
 
         try:
             self.switches_state[switch_name]["state"] = state
+            logging.error(json.dumps(self.switches_state[switch_name]))
             with open(self.db_file, encoding='utf-8', mode='w') as switches_file:
                 json.dump(self.switches_state, switches_file)
         except Exception as e:
-            print(traceback.format_exc())
+            logging.error(traceback.format_exc())
             raise UpdateStateError()

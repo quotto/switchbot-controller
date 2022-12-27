@@ -40,7 +40,9 @@ def exec_switchbot(payload: str, repository: IRepository)->None:
 
 
         if current_state["state"] != required_state:
-            if switchbot.execute(mac=current_state["mac"], dev_type="Bot", cmd="Press"):
+            driver = switchbot.Driver(device=current_state["mac"], bt_interface="hci0", timeout_secs=8)
+            result = driver.run_command("press")
+            if result[0]==b'\x13':
                 try:
                     repository.update_state_by_switch_name(target_switch_name, required_state)
                 except UpdateStateError as e:

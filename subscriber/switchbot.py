@@ -1,5 +1,6 @@
-#!/usr/bin/env python3
-# Copyright 2017-present WonderLabs, Inc. <support@wondertechlabs.com>
+#!/usr/bin/env python
+#
+# :author: Fabio "BlackLight" Manganiello <info@fabiomanganiello.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,96 +13,173 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# --
-# Changes from original file
-# 2022/12/4
-# - Original execute method was changed to call from another python module
-# - Deleted methods about scan process
-# - Add gatt process of char-write-req handle:0x13, value:0x01 in trigger_device method
 
-import pexpect
+# Some of the functionalities of the bluetooth LE stack (like
+# device scanning) require special user privileges. Solutions:
+#
+# - Run this script as root
+# - Set `cap_net` capabilities on your Python interpreter:
+#     `[sudo] setcap 'cap_net_raw,cap_net_admin+eip' /path/to/python
+#
+# Note however that the latter option will set the privileges for any
+# script that runs on that Python interpreter. If it's a security concern,
+# then you might want to set the capabilities on a Python venv executable
+# made specifically for Switchbot instead.
+# 2022/12/28
+# - change print method to logger
+
+import argparse
 import sys
-import binascii
-import copy
-import datetime
+import time
+from contextlib import contextmanager
+
+import bluetooth
+from bluetooth.ble import DiscoveryService, GATTRequester
+
 import logging
 
-def trigger_device(device):
-    [mac, dev_type, act] = device
-    # print 'Start to control'
-    con = pexpect.spawn('gatttool -b ' + mac + ' -t random -I')
-    con.expect('\[LE\]>')
-    logging.info('Preparing to connect.')
-    retry = 3
-    index = 0
-    while retry > 0 and 0 == index:
-        con.sendline('connect')
-        # To compatible with different Bluez versions
-        index = con.expect(
-            ['Error', '\[CON\]', 'Connection successful.*\[LE\]>'])
-        retry -= 1
-    if 0 == index:
-        logging.error('Connection error.')
-        return
-    logging.info('Connection successful.')
-    con.sendline('char-desc')
-    con.expect(['\[CON\]', 'cba20002-224d-11e6-9fb8-0002a5d5c51b'])
-    cmd_handle = con.before.decode('utf-8').split('\n')[-1].split()[2].strip(',')
-    con.sendline('char-write-req 13 0100')
-    con.expect('\[LE\]>')
-    if dev_type == 'Bot':
-        if act == 'Turn On':
-            con.sendline('char-write-cmd ' + cmd_handle + ' 570101')
-        elif act == 'Turn Off':
-            con.sendline('char-write-cmd ' + cmd_handle + ' 570102')
-        elif act == 'Press':
-            con.sendline('char-write-cmd ' + cmd_handle + ' 570100')
-        elif act == 'Down':
-            con.sendline('char-write-cmd ' + cmd_handle + ' 570103')
-        elif act == 'Up':
-            con.sendline('char-write-cmd ' + cmd_handle + ' 570104')
-    elif dev_type == 'Meter':
-        con.sendline('char-write-cmd ' + cmd_handle + ' 570F31')
-        con.expect('\[LE\]>')
-        con.sendline('char-read-uuid cba20003-224d-11e6-9fb8-0002a5d5c51b')
-        index = con.expect(['value:[0-9a-fA-F ]+', 'Error'])
-        if index == 0:
-            data = con.after.decode('utf-8').split(':')[1].replace(' ', '')
-            tempFra = int(data[3], 16) / 10.0
-            tempInt = int(data[4:6], 16)
-            if tempInt < 128:
-                tempInt *= -1
-                tempFra *= -1
-            else:
-                tempInt -= 128
-            meterTemp = tempInt + tempFra
-            meterHumi = int(data[6:8], 16) % 128
-            logging.info("Meter[%s] %.1f'C %d%%" % (mac, meterTemp, meterHumi))
-        else:
-            logging.error('Error!')
-            return False
-    elif dev_type == 'Curtain':
-        if act == 'Open':
-            con.sendline('char-write-cmd ' + cmd_handle + ' 570F450105FF00')
-        elif act == 'Close':
-            con.sendline('char-write-cmd ' + cmd_handle + ' 570F450105FF64')
-        elif act == 'Pause':
-            con.sendline('char-write-cmd ' + cmd_handle + ' 570F450100FF')
+@contextmanager
+def connect(device: str, bt_interface: str, timeout: float):
+    if bt_interface:
+        req = GATTRequester(device, False, bt_interface)
     else:
-        logging.error('Unsupported operations')
-    con.expect('\[LE\]>')
-    con.sendline('disconnect')
-    con.sendline('quit')
-    logging.info('Complete')
-    return True
+        req = GATTRequester(device, False)
+
+    req.connect(False, 'random')
+    connect_start_time = time.time()
+
+    while not req.is_connected():
+        if time.time() - connect_start_time >= timeout:
+            raise ConnectionError('Connection to {} timed out after {} seconds'.
+                                  format(device, timeout))
+        time.sleep(0.1)
+
+    yield req
+
+    if req.is_connected():
+        req.disconnect()
 
 
-def execute(mac="", dev_type="", cmd=""):
-    connect = pexpect.spawn('hciconfig')
-    pnum = connect.expect(["hci0", pexpect.EOF, pexpect.TIMEOUT])
-    if pnum != 0:
-        logging.error('No bluetooth hardware, exit now')
-        return False
-    connect = pexpect.spawn('hciconfig hci0 up')
+class Scanner(object):
+    service_uuid = 'cba20002-224d-11e6-9fb8-0002a5d5c51b'
+    _default_scan_timeout = 8
+    _default_connect_timeout = 2.0
 
-    return trigger_device([mac, dev_type, cmd])
+    def __init__(self, bt_interface: str = None, scan_timeout: int = None,
+                 connect_timeout: float = None):
+        self.bt_interface = bt_interface
+        self.connect_timeout = connect_timeout or self._default_connect_timeout
+        self.scan_timeout = scan_timeout or self._default_scan_timeout
+
+    @classmethod
+    def is_switchbot(cls, device: str, bt_interface: str, timeout: float):
+        try:
+            with connect(device, bt_interface, timeout) as req:
+                for chrc in req.discover_characteristics():
+                    if chrc.get('uuid') == cls.service_uuid:
+                        logging.error(' * Found Switchbot service on device {} handle {}'.
+                              format(device, chrc.get('value_handle')))
+                        return True
+        except ConnectionError:
+            return False
+
+    def scan(self):
+        if self.bt_interface:
+            service = DiscoveryService(self.bt_interface)
+        else:
+            service = DiscoveryService()
+
+        logging.info('Scanning for bluetooth low-energy devices')
+        devices = list(service.discover(self.scan_timeout).keys())
+        logging.info('Discovering Switchbot services')
+        return [dev for dev in devices
+                if self.is_switchbot(dev, self.bt_interface, self.connect_timeout)]
+
+
+class Driver(object):
+    handles = {
+        'press': 0x10,
+        'on': 0x16,
+        'off': 0x16,
+        'open': 0x0D,
+        'close': 0x0D,
+        'pause': 0x0D,
+    }
+    commands = {
+        'press': b'\x57\x01\x00',
+        'on': b'\x57\x01\x01',
+        'off': b'\x57\x01\x02',
+        'open': b'\x57\x0F\x45\x01\x05\xFF\x00',
+        'close': b'\x57\x0F\x45\x01\x05\xFF\x64',
+        'pause': b'\x57\x0F\x45\x01\x00\xFF',
+    }
+
+    def __init__(self, device, bt_interface=None, timeout_secs=None):
+        self.device = device
+        self.bt_interface = bt_interface
+        self.timeout_secs = timeout_secs if timeout_secs else 5
+
+    def run_command(self, command):
+        with connect(self.device, self.bt_interface, self.timeout_secs) as req:
+            logging.info('Connected!')
+            req.write_by_handle(0x13, b'\x01\x00')
+            return req.write_by_handle(self.handles[command], self.commands[command])
+
+
+def main():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-s', '--scan', dest='scan', required=False, default=False, action='store_true',
+                        help="Run Switchbot in scan mode - scan devices to control")
+
+    parser.add_argument('-d', '--device', dest='device', required=False, default=None,
+                        help="Specify the address of a device to control")
+
+    parser.add_argument('-c', '--command',  dest='command', required=False, default='press',
+                        choices=['press', 'on', 'off', 'open', 'close', 'pause'],
+                        help="Command to be sent to device. \
+                            Noted that press/on/off for Bot and open/close for Curtain. \
+                            Required if the controlled device is Curtain (default: %(default)s)")
+
+    parser.add_argument('-i', '--interface',  dest='interface', required=False, default='hci0',
+                        help="Name of the bluetooth adapter (default: %(default)s)")
+
+    parser.add_argument('--scan-timeout', dest='scan_timeout', type=int, required=False, default=2,
+                        help="Device scan timeout (default: %(default)s second(s))")
+
+    parser.add_argument('--connect-timeout', dest='connect_timeout', type=int, required=False, default=5,
+                        help="Device connection timeout (default: %(default)s second(s))")
+
+    opts, args = parser.parse_known_args(sys.argv[1:])
+
+    if opts.scan:
+        scanner = Scanner(opts.interface, opts.scan_timeout, opts.connect_timeout)
+        devices = scanner.scan()
+
+        if not devices:
+            logging.error('No Switchbots found')
+            sys.exit(1)
+
+        logging.info('Found {} devices: {}'.format(len(devices), devices))
+        logging.info('Enter the number of the device you want to control:')
+
+        for i in range(0, len(devices)):
+            logging.info('\t{}\t{}'.format(i, devices[i]))
+
+        i = int(input())
+        bt_addr = devices[i]
+    elif opts.device:
+        bt_addr = opts.device
+    else:
+        raise RuntimeError('Please specify at least one mode between --scan and --device')
+
+    driver = Driver(device=bt_addr, bt_interface=opts.interface, timeout_secs=opts.connect_timeout)
+    driver.run_command(opts.command)
+    logging.info('Command execution successful')
+
+
+if __name__ == '__main__':
+    main()
+
+
+# vim:sw=4:ts=4:et:
