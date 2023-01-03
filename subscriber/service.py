@@ -41,12 +41,19 @@ def exec_switchbot(payload: str, repository: IRepository)->None:
 
         if current_state["state"] != required_state:
             driver = switchbot.Driver(device=current_state["mac"], bt_interface="hci0", timeout_secs=8)
-            result = driver.run_command("press")
-            if result[0]==b'\x13':
-                try:
-                    repository.update_state_by_switch_name(target_switch_name, required_state)
-                except UpdateStateError as e:
-                    logging.info("Update state failed.")
-                    return
+            try_count = 1
+            result = b'\x00'
+            while try_count < 5:
+                try_count = try_count + 1
+                result = driver.run_command("press")
+                if result[0]==b'\x13':
+                    logging.info("Press succeed")
+                    try:
+                        repository.update_state_by_switch_name(target_switch_name, required_state)
+                    except UpdateStateError as e:
+                        logging.info("Update state failed.")
+                    break
+                else:
+                    logging.error("Press failed {} times.".format(try_count))
         else:
             logging.warning("Already switch is {}".format("ON" if required_state else "OFF"))
