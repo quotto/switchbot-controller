@@ -70,7 +70,7 @@ class JsonFileRepository(IRepository):
 
         try:
             self.switches_state[switch_name]["state"] = state
-            logging.error(json.dumps(self.switches_state[switch_name]))
+            logging.info(json.dumps(self.switches_state[switch_name]))
             with open(self.db_file, encoding='utf-8', mode='w') as switches_file:
                 json.dump(self.switches_state, switches_file)
         except Exception as e:
